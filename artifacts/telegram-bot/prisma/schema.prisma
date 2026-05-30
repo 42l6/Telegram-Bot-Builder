@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Language {
+  en
+  ar
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  shipped
+  completed
+  cancelled
+}
+
+enum UserRole {
+  user
+  admin
+  superadmin
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum BroadcastStatus {
+  draft
+  sending
+  completed
+  failed
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  telegramId      BigInt    @unique @map("telegram_id")
+  username        String?
+  firstName       String    @map("first_name")
+  lastName        String?   @map("last_name")
+  language        Language  @default(en)
+  role            UserRole  @default(user)
+  isBanned        Boolean   @default(false) @map("is_banned")
+  banReason       String?   @map("ban_reason")
+  phone           String?
+  walletBalance   Decimal   @default(0) @map("wallet_balance") @db.Decimal(10, 2)
+  bonusPoints     Int       @default(0) @map("bonus_points")
+  referralCode    String    @unique @map("referral_code")
+  referredBy      Int?      @map("referred_by")
+  lastActiveAt    DateTime  @default(now()) @map("last_active_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  referrer        User?     @relation("UserReferrals", fields: [referredBy], references: [id])
+  referrals       User[]    @relation("UserReferrals")
+  cart            Cart?
+  orders          Order[]
+  favorites       Favorite[]
+  tickets         Ticket[]
+  usedCoupons     CouponUsage[]
+  dailyRewards    DailyReward[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@map("users")
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  nameEn      String    @map("name_en")
+  nameAr      String    @map("name_ar")
+  descriptionEn String? @map("description_en")
+  descriptionAr String? @map("description_ar")
+  imageFileId String?   @map("image_file_id")
+  isActive    Boolean   @default(true) @map("is_active")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            Int       @id @default(autoincrement())
+  categoryId    Int       @map("category_id")
+  nameEn        String    @map("name_en")
+  nameAr        String    @map("name_ar")
+  descriptionEn String?   @map("description_en")
+  descriptionAr String?   @map("description_ar")
+  price         Decimal   @db.Decimal(10, 2)
+  discountPrice Decimal?  @map("discount_price") @db.Decimal(10, 2)
+  stock         Int       @default(0)
+  imageFileId   String?   @map("image_file_id")
+  isActive      Boolean   @default(true) @map("is_active")
+  sortOrder     Int       @default(0) @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  category      Category  @relation(fields: [categoryId], references: [id])
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  favorites     Favorite[]
+
+  @@map("products")
+}
+
+model Cart {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        Int       @id @default(autoincrement())
+  cartId    Int       @map("cart_id")
+  productId Int       @map("product_id")
+  quantity  Int       @default(1)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  cart      Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@map("cart_items")
+}
+
+model Favorite {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  productId Int       @map("product_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@map("favorites")
+}
+
+model Order {
+  id              Int         @id @default(autoincrement())
+  userId          Int         @map("user_id")
+  status          OrderStatus @default(pending)
+  customerName    String      @map("customer_name")
+  customerPhone   String      @map("customer_phone")
+  customerAddress String      @map("customer_address")
+  notes           String?
+  totalAmount     Decimal     @map("total_amount") @db.Decimal(10, 2)
+  discountAmount  Decimal     @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  finalAmount     Decimal     @map("final_amount") @db.Decimal(10, 2)
+  couponCode      String?     @map("coupon_code")
+  pointsUsed      Int         @default(0) @map("points_used")
+  adminNote       String?     @map("admin_note")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  user            User        @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int     @map("order_id")
+  productId   Int     @map("product_id")
+  productName String  @map("product_name")
+  price       Decimal @db.Decimal(10, 2)
+  quantity    Int
+  subtotal    Decimal @db.Decimal(10, 2)
+
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Coupon {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  descriptionEn   String?   @map("description_en")
+  descriptionAr   String?   @map("description_ar")
+  discountType    String    @map("discount_type") // percentage | fixed
+  discountValue   Decimal   @map("discount_value") @db.Decimal(10, 2)
+  minOrderAmount  Decimal?  @map("min_order_amount") @db.Decimal(10, 2)
+  maxUses         Int?      @map("max_uses")
+  usedCount       Int       @default(0) @map("used_count")
+  isActive        Boolean   @default(true) @map("is_active")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  usages          CouponUsage[]
+
+  @@map("coupons")
+}
+
+model CouponUsage {
+  id        Int      @id @default(autoincrement())
+  couponId  Int      @map("coupon_id")
+  userId    Int      @map("user_id")
+  orderId   Int?     @map("order_id")
+  usedAt    DateTime @default(now()) @map("used_at")
+
+  coupon    Coupon   @relation(fields: [couponId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("coupon_usages")
+}
+
+model Broadcast {
+  id           Int             @id @default(autoincrement())
+  title        String
+  messageEn    String?         @map("message_en")
+  messageAr    String?         @map("message_ar")
+  imageFileId  String?         @map("image_file_id")
+  status       BroadcastStatus @default(draft)
+  targetAll    Boolean         @default(true) @map("target_all")
+  sentCount    Int             @default(0) @map("sent_count")
+  failedCount  Int             @default(0) @map("failed_count")
+  scheduledAt  DateTime?       @map("scheduled_at")
+  completedAt  DateTime?       @map("completed_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@map("broadcasts")
+}
+
+model Ticket {
+  id          Int          @id @default(autoincrement())
+  userId      Int          @map("user_id")
+  subject     String
+  status      TicketStatus @default(open)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id])
+  messages    TicketMessage[]
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id          Int      @id @default(autoincrement())
+  ticketId    Int      @map("ticket_id")
+  senderId    BigInt   @map("sender_id")
+  isAdmin     Boolean  @default(false) @map("is_admin")
+  message     String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
+}
+
+model ChannelSubscription {
+  id          Int      @id @default(autoincrement())
+  channelId   String   @unique @map("channel_id")
+  channelName String   @map("channel_name")
+  inviteLink  String?  @map("invite_link")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("channel_subscriptions")
+}
+
+model DailyReward {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  points      Int
+  claimedAt   DateTime @default(now()) @map("claimed_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("daily_rewards")
+}
+
+model AnalyticsEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  event     String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("analytics_events")
+}
+
+model AutoReply {
+  id          Int      @id @default(autoincrement())
+  trigger     String   @unique
+  replyEn     String   @map("reply_en")
+  replyAr     String   @map("reply_ar")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("auto_replies")
+}
+
+model Settings {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
