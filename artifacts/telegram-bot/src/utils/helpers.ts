@@ -1,9 +1,9 @@
 import { Language } from '@prisma/client';
 import { Prisma } from '@prisma/client';
-import { nanoid } from 'nanoid';
+import { v4 as uuidv4 } from 'uuid';
 
 export function generateReferralCode(): string {
-  return nanoid(8).toUpperCase();
+  return uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase();
 }
 
 export function formatPrice(amount: Prisma.Decimal | number | string): string {

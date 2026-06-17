@@ -1,5 +1,4 @@
 import { Markup } from 'telegraf';
-import { InlineKeyboardMarkup } from 'telegraf/types';
 import { Language } from '@prisma/client';
 import { translate } from '../services/translation';
 import { chunkArray } from './helpers';

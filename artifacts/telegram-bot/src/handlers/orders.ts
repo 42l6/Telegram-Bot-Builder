@@ -5,7 +5,6 @@ import { ordersKeyboard, backHomeKeyboard } from '../utils/keyboards';
 import { formatPrice, formatDate } from '../utils/helpers';
 import { logger } from '../utils/logger';
 import { Markup } from 'telegraf';
-import { OrderStatus } from '@prisma/client';
 
 export async function showOrders(ctx: BotContext, page = 1): Promise<void> {
   try {

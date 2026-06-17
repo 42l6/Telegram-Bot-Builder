@@ -92,9 +92,6 @@ export async function addToCart(ctx: BotContext, productId: number): Promise<voi
 
     await cache.del(CACHE_KEYS.cart(userId));
     await ctx.answerCbQuery(t('added_to_cart'), { show_alert: true }).catch(() => null);
-
-    // Refresh product view
-    await showProductWithCartState(ctx, productId);
   } catch (error) {
     logger.error('addToCart error:', error);
     await ctx.answerCbQuery(ctx.t('error_occurred'), { show_alert: true }).catch(() => null);
@@ -178,10 +175,6 @@ export async function clearCart(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error('clearCart error:', error);
   }
-}
-
-async function showProductWithCartState(ctx: BotContext, productId: number): Promise<void> {
-  // Just answer and let user see the updated state
 }
 
 async function safeEdit(
