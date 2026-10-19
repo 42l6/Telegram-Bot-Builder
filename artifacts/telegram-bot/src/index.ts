@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Telegraf, Scenes, session } from 'telegraf';
 import { config } from './config';
 import { logger } from './utils/logger';
@@ -398,12 +399,16 @@ async function bootstrap(): Promise<void> {
   initScheduler(bot.telegram);
 
   if (config.WEBHOOK_DOMAIN && config.isProd) {
-    const webhookPath = `/webhook/${config.BOT_TOKEN}`;
+    // The bot token never appears in a URL (proxy and hosting logs would keep it). A random
+    // path plus Telegram's secret-token header prove that updates really come from Telegram.
+    const webhookPath = `/webhook/${randomUUID()}`;
+    const webhookSecret = randomBytes(32).toString('hex');
     await bot.launch({
       webhook: {
         domain: config.WEBHOOK_DOMAIN,
         port: config.WEBHOOK_PORT,
         path: webhookPath,
+        secretToken: webhookSecret,
       },
     });
     logger.info(`✅ Bot started via webhook on port ${config.WEBHOOK_PORT}`);

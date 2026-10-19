@@ -8,7 +8,7 @@ services:
     env_file: .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-changeme}@postgres:5432/telegram_bot
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/telegram_bot
       - REDIS_URL=redis://redis:6379
     depends_on:
       postgres:
@@ -27,7 +27,7 @@ services:
     environment:
       POSTGRES_DB: telegram_bot
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,7 +36,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # local admin access only; the bot reaches it over the compose network
 
   redis:
     image: redis:7-alpine
@@ -51,7 +51,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"   # Redis has no password: never expose it beyond this host
 
 volumes:
   postgres_data:

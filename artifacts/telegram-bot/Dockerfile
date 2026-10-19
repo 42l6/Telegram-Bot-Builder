@@ -5,7 +5,8 @@ RUN apk add --no-cache openssl
 # ── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm install --frozen-lockfile 2>/dev/null || npm install
+# reproducible when package-lock.json is committed; plain install otherwise
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
